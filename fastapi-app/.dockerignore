@@ -1,0 +1,10 @@
+# Ignore files
+*.pyc
+__pycache__
+*.log
+*.db
+
+# Ignore directories
+.git
+.gitignore
+node_modules

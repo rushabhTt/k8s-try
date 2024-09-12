@@ -1,0 +1,11 @@
+kubectl
+.gitignore
+
+# Ignore Kubernetes config files
+k8s/*.yaml
+
+# Ignore other unnecessary files
+*.md
+*.gitignore
+.git
+__pycache__/
