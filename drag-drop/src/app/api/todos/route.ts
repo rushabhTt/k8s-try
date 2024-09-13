@@ -44,18 +44,22 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { id, columnId } = await request.json();
+    const { id, columnId, content } = await request.json();
 
     // Ensure id is a valid ObjectId string
-    const objectId = new ObjectId(id as string); // Cast id to string
+    const objectId = new ObjectId(id as string);
 
     await client.connect();
     const db = client.db("DragAndDrop");
     const collection = db.collection("Todos");
 
+    const updateData: { columnId?: string; content?: string } = {};
+    if (columnId) updateData.columnId = columnId;
+    if (content) updateData.content = content;
+
     const result = await collection.updateOne(
       { _id: objectId },
-      { $set: { columnId } }
+      { $set: updateData }
     );
 
     return NextResponse.json(result);

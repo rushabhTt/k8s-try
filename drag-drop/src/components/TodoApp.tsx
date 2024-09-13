@@ -7,7 +7,7 @@ import {
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
-import { PlusCircle, X } from "lucide-react";
+import { PlusCircle, X, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -18,6 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface Todo {
   _id: string;
@@ -51,8 +58,13 @@ export default function TodoApp() {
     inProgress: "",
     done: "",
   });
+  const [editingTodo, setEditingTodo] = useState<{
+    id: string;
+    content: string;
+  } | null>(null);
+  const [expandedTodo, setExpandedTodo] = useState<string | null>(null);
 
-  const hasFetched = useRef(false); // Move useRef outside useEffect
+  const hasFetched = useRef(false);
 
   useEffect(() => {
     if (!hasFetched.current) {
@@ -226,6 +238,56 @@ export default function TodoApp() {
     }
   };
 
+  const startEditing = (todo: Todo) => {
+    setEditingTodo({ id: todo._id, content: todo.content });
+  };
+
+  const saveEdit = async () => {
+    if (!editingTodo) return;
+
+    try {
+      await fetch("/api/todos", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: editingTodo.id,
+          content: editingTodo.content,
+        }),
+      });
+
+      setColumns((prevColumns) => {
+        const updatedColumns = { ...prevColumns };
+        for (const columnId in updatedColumns) {
+          updatedColumns[columnId].items = updatedColumns[columnId].items.map(
+            (item) =>
+              item._id === editingTodo.id
+                ? { ...item, content: editingTodo.content }
+                : item
+          );
+        }
+        return updatedColumns;
+      });
+
+      setEditingTodo(null);
+    } catch (err) {
+      console.error("Error updating todo:", err);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveEdit();
+    }
+  };
+
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + "...";
+  };
+
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Multi-Column To-Do App</h1>
@@ -307,16 +369,53 @@ export default function TodoApp() {
                                   snapshot.isDragging ? "opacity-50" : ""
                                 }`}
                               >
-                                {item.content}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    removeTodo(columnId as ColumnId, index)
-                                  }
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
+                                {editingTodo && editingTodo.id === item._id ? (
+                                  <Input
+                                    type="text"
+                                    value={editingTodo.content}
+                                    onChange={(e) =>
+                                      setEditingTodo({
+                                        ...editingTodo,
+                                        content: e.target.value,
+                                      })
+                                    }
+                                    onBlur={saveEdit}
+                                    onKeyDown={handleKeyDown}
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <Dialog>
+                                    <DialogTrigger asChild>
+                                      <span className="cursor-pointer">
+                                        {truncateText(item.content, 30)}
+                                      </span>
+                                    </DialogTrigger>
+                                    <DialogContent className="bg-white border-0 shadow-lg">
+                                      <DialogHeader>
+                                        <DialogTitle>Todo Details</DialogTitle>
+                                      </DialogHeader>
+                                      <p>{item.content}</p>
+                                    </DialogContent>
+                                  </Dialog>
+                                )}
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => startEditing(item)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      removeTodo(columnId as ColumnId, index)
+                                    }
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </li>
                             )}
                           </Draggable>
