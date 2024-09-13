@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import type { NextPage } from "next";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "@hello-pangea/dnd";
 import { PlusCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,104 +20,126 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const initialColumns = {
+interface Todo {
+  id: string;
+  content: string;
+}
+
+interface Column {
+  title: string;
+  items: Todo[];
+}
+
+type ColumnId = "todo" | "inProgress" | "done";
+
+interface Columns {
+  [key: string]: Column;
+}
+
+const initialColumns: Columns = {
   todo: { title: "To Do", items: [] },
   inProgress: { title: "In Progress", items: [] },
   done: { title: "Done", items: [] },
 };
 
-const TodoApp = () => {
-  const [columns, setColumns] = useState(initialColumns);
-  const [newTodo, setNewTodo] = useState("");
-  const [selectedColumn, setSelectedColumn] = useState("todo");
-  const [newTodos, setNewTodos] = useState({
+const TodoApp: NextPage = () => {
+  const [columns, setColumns] = useState<Columns>(initialColumns);
+  const [newTodo, setNewTodo] = useState<string>("");
+  const [selectedColumn, setSelectedColumn] = useState<ColumnId>("todo");
+  const [newTodos, setNewTodos] = useState<{ [key in ColumnId]: string }>({
     todo: "",
     inProgress: "",
     done: "",
   });
 
-  const addTodoCommon = (e) => {
+  const addTodoCommon = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newTodo.trim()) return;
 
-    const updatedColumns = {
-      ...columns,
+    setColumns((prevColumns) => ({
+      ...prevColumns,
       [selectedColumn]: {
-        ...columns[selectedColumn],
+        ...prevColumns[selectedColumn],
         items: [
-          ...columns[selectedColumn].items,
+          ...prevColumns[selectedColumn].items,
           { id: Date.now().toString(), content: newTodo },
         ],
       },
-    };
-    setColumns(updatedColumns);
+    }));
     setNewTodo("");
   };
 
-  const addTodoColumn = (columnId, e) => {
+  const addTodoColumn = (
+    columnId: ColumnId,
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
     if (!newTodos[columnId].trim()) return;
 
-    const updatedColumns = {
-      ...columns,
+    setColumns((prevColumns) => ({
+      ...prevColumns,
       [columnId]: {
-        ...columns[columnId],
+        ...prevColumns[columnId],
         items: [
-          ...columns[columnId].items,
+          ...prevColumns[columnId].items,
           { id: Date.now().toString(), content: newTodos[columnId] },
         ],
       },
-    };
-    setColumns(updatedColumns);
-    setNewTodos({ ...newTodos, [columnId]: "" });
+    }));
+    setNewTodos((prev) => ({ ...prev, [columnId]: "" }));
   };
 
-  const onDragEnd = (result) => {
+  const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const { source, destination } = result;
 
     if (source.droppableId !== destination.droppableId) {
-      const sourceColumn = columns[source.droppableId];
-      const destColumn = columns[destination.droppableId];
-      const sourceItems = [...sourceColumn.items];
-      const destItems = [...destColumn.items];
-      const [removed] = sourceItems.splice(source.index, 1);
-      destItems.splice(destination.index, 0, removed);
-      setColumns({
-        ...columns,
-        [source.droppableId]: {
-          ...sourceColumn,
-          items: sourceItems,
-        },
-        [destination.droppableId]: {
-          ...destColumn,
-          items: destItems,
-        },
+      setColumns((prevColumns) => {
+        const sourceColumn = prevColumns[source.droppableId];
+        const destColumn = prevColumns[destination.droppableId];
+        const sourceItems = [...sourceColumn.items];
+        const destItems = [...destColumn.items];
+        const [removed] = sourceItems.splice(source.index, 1);
+        destItems.splice(destination.index, 0, removed);
+
+        return {
+          ...prevColumns,
+          [source.droppableId]: {
+            ...sourceColumn,
+            items: sourceItems,
+          },
+          [destination.droppableId]: {
+            ...destColumn,
+            items: destItems,
+          },
+        };
       });
     } else {
-      const column = columns[source.droppableId];
-      const copiedItems = [...column.items];
-      const [removed] = copiedItems.splice(source.index, 1);
-      copiedItems.splice(destination.index, 0, removed);
-      setColumns({
-        ...columns,
-        [source.droppableId]: {
-          ...column,
-          items: copiedItems,
-        },
+      setColumns((prevColumns) => {
+        const column = prevColumns[source.droppableId];
+        const copiedItems = [...column.items];
+        const [removed] = copiedItems.splice(source.index, 1);
+        copiedItems.splice(destination.index, 0, removed);
+
+        return {
+          ...prevColumns,
+          [source.droppableId]: {
+            ...column,
+            items: copiedItems,
+          },
+        };
       });
     }
   };
 
-  const removeTodo = (columnId, index) => {
-    const updatedColumns = {
-      ...columns,
+  const removeTodo = (columnId: ColumnId, index: number) => {
+    setColumns((prevColumns) => ({
+      ...prevColumns,
       [columnId]: {
-        ...columns[columnId],
-        items: columns[columnId].items.filter((_, i) => i !== index),
+        ...prevColumns[columnId],
+        items: prevColumns[columnId].items.filter((_, i) => i !== index),
       },
-    };
-    setColumns(updatedColumns);
+    }));
   };
 
   return (
@@ -125,7 +153,10 @@ const TodoApp = () => {
           placeholder="Enter a new todo"
           className="flex-grow"
         />
-        <Select value={selectedColumn} onValueChange={setSelectedColumn}>
+        <Select
+          value={selectedColumn}
+          onValueChange={(value: ColumnId) => setSelectedColumn(value)}
+        >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select a column" />
           </SelectTrigger>
@@ -151,14 +182,17 @@ const TodoApp = () => {
                 </CardHeader>
                 <CardContent>
                   <form
-                    onSubmit={(e) => addTodoColumn(columnId, e)}
+                    onSubmit={(e) => addTodoColumn(columnId as ColumnId, e)}
                     className="mb-4 flex gap-2"
                   >
                     <Input
                       type="text"
-                      value={newTodos[columnId]}
+                      value={newTodos[columnId as ColumnId]}
                       onChange={(e) =>
-                        setNewTodos({ ...newTodos, [columnId]: e.target.value })
+                        setNewTodos((prev) => ({
+                          ...prev,
+                          [columnId]: e.target.value,
+                        }))
                       }
                       placeholder={`Add to ${column.title}`}
                       className="flex-grow"
@@ -193,7 +227,9 @@ const TodoApp = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => removeTodo(columnId, index)}
+                                  onClick={() =>
+                                    removeTodo(columnId as ColumnId, index)
+                                  }
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
