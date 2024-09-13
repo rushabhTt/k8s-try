@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import type { NextPage } from "next";
+import React, { useState, useEffect, useRef } from "react";
 import {
   DragDropContext,
   Droppable,
@@ -21,8 +20,9 @@ import {
 } from "@/components/ui/select";
 
 interface Todo {
-  id: string;
+  _id: string;
   content: string;
+  columnId: ColumnId;
 }
 
 interface Column {
@@ -42,7 +42,7 @@ const initialColumns: Columns = {
   done: { title: "Done", items: [] },
 };
 
-const TodoApp: NextPage = () => {
+export default function TodoApp() {
   const [columns, setColumns] = useState<Columns>(initialColumns);
   const [newTodo, setNewTodo] = useState<string>("");
   const [selectedColumn, setSelectedColumn] = useState<ColumnId>("todo");
@@ -52,44 +52,101 @@ const TodoApp: NextPage = () => {
     done: "",
   });
 
-  const addTodoCommon = (e: React.FormEvent<HTMLFormElement>) => {
+  const hasFetched = useRef(false); // Move useRef outside useEffect
+
+  useEffect(() => {
+    if (!hasFetched.current) {
+      fetchTodos();
+      hasFetched.current = true;
+    }
+  }, []);
+
+  const fetchTodos = async () => {
+    try {
+      const response = await fetch("/api/todos");
+      const todos = await response.json();
+
+      const updatedColumns = { ...initialColumns };
+      todos.forEach((todo: Todo) => {
+        if (updatedColumns[todo.columnId]) {
+          updatedColumns[todo.columnId].items.push(todo);
+        }
+      });
+
+      setColumns(updatedColumns);
+    } catch (err) {
+      console.error("Error fetching todos:", err);
+    }
+  };
+
+  const addTodoCommon = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newTodo.trim()) return;
 
-    setColumns((prevColumns) => ({
-      ...prevColumns,
-      [selectedColumn]: {
-        ...prevColumns[selectedColumn],
-        items: [
-          ...prevColumns[selectedColumn].items,
-          { id: Date.now().toString(), content: newTodo },
-        ],
-      },
-    }));
-    setNewTodo("");
+    try {
+      const response = await fetch("/api/todos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: newTodo, columnId: selectedColumn }),
+      });
+      const result = await response.json();
+
+      setColumns((prevColumns) => ({
+        ...prevColumns,
+        [selectedColumn]: {
+          ...prevColumns[selectedColumn],
+          items: [
+            ...prevColumns[selectedColumn].items,
+            {
+              _id: result.insertedId,
+              content: newTodo,
+              columnId: selectedColumn,
+            },
+          ],
+        },
+      }));
+      setNewTodo("");
+    } catch (err) {
+      console.error("Error adding todo:", err);
+    }
   };
 
-  const addTodoColumn = (
+  const addTodoColumn = async (
     columnId: ColumnId,
     e: React.FormEvent<HTMLFormElement>
   ) => {
     e.preventDefault();
     if (!newTodos[columnId].trim()) return;
 
-    setColumns((prevColumns) => ({
-      ...prevColumns,
-      [columnId]: {
-        ...prevColumns[columnId],
-        items: [
-          ...prevColumns[columnId].items,
-          { id: Date.now().toString(), content: newTodos[columnId] },
-        ],
-      },
-    }));
-    setNewTodos((prev) => ({ ...prev, [columnId]: "" }));
+    try {
+      const response = await fetch("/api/todos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: newTodos[columnId], columnId }),
+      });
+      const result = await response.json();
+
+      setColumns((prevColumns) => ({
+        ...prevColumns,
+        [columnId]: {
+          ...prevColumns[columnId],
+          items: [
+            ...prevColumns[columnId].items,
+            { _id: result.insertedId, content: newTodos[columnId], columnId },
+          ],
+        },
+      }));
+      setNewTodos((prev) => ({ ...prev, [columnId]: "" }));
+    } catch (err) {
+      console.error("Error adding todo to column:", err);
+    }
   };
 
-  const onDragEnd = (result: DropResult) => {
+  const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
     const { source, destination } = result;
 
@@ -114,6 +171,21 @@ const TodoApp: NextPage = () => {
           },
         };
       });
+
+      try {
+        await fetch("/api/todos", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: columns[source.droppableId].items[source.index]._id,
+            columnId: destination.droppableId,
+          }),
+        });
+      } catch (err) {
+        console.error("Error updating todo column:", err);
+      }
     } else {
       setColumns((prevColumns) => {
         const column = prevColumns[source.droppableId];
@@ -132,14 +204,26 @@ const TodoApp: NextPage = () => {
     }
   };
 
-  const removeTodo = (columnId: ColumnId, index: number) => {
-    setColumns((prevColumns) => ({
-      ...prevColumns,
-      [columnId]: {
-        ...prevColumns[columnId],
-        items: prevColumns[columnId].items.filter((_, i) => i !== index),
-      },
-    }));
+  const removeTodo = async (columnId: ColumnId, index: number) => {
+    try {
+      await fetch("/api/todos", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: columns[columnId].items[index]._id }),
+      });
+
+      setColumns((prevColumns) => ({
+        ...prevColumns,
+        [columnId]: {
+          ...prevColumns[columnId],
+          items: prevColumns[columnId].items.filter((_, i) => i !== index),
+        },
+      }));
+    } catch (err) {
+      console.error("Error removing todo:", err);
+    }
   };
 
   return (
@@ -210,8 +294,8 @@ const TodoApp: NextPage = () => {
                       >
                         {column.items.map((item, index) => (
                           <Draggable
-                            key={item.id}
-                            draggableId={item.id}
+                            key={item._id.toString()}
+                            draggableId={item._id.toString()}
                             index={index}
                           >
                             {(provided, snapshot) => (
@@ -249,6 +333,4 @@ const TodoApp: NextPage = () => {
       </DragDropContext>
     </div>
   );
-};
-
-export default TodoApp;
+}
