@@ -47,14 +47,14 @@ export async function PUT(request: NextRequest) {
     const { id, columnId } = await request.json();
 
     // Ensure id is a valid ObjectId string
-    const objectId = new ObjectId(id);
+    const objectId = new ObjectId(id as string); // Cast id to string
 
     await client.connect();
     const db = client.db("DragAndDrop");
     const collection = db.collection("Todos");
 
     const result = await collection.updateOne(
-      { _id: objectId }, // No deprecation warning, id is treated as a string
+      { _id: objectId },
       { $set: { columnId } }
     );
 
@@ -74,7 +74,7 @@ export async function DELETE(request: NextRequest) {
     const { id } = await request.json();
 
     // Ensure id is a valid ObjectId string
-    const objectId = new ObjectId(id);
+    const objectId = new ObjectId(id as string); // Cast id to string
 
     await client.connect();
     const db = client.db("DragAndDrop");
@@ -92,4 +92,3 @@ export async function DELETE(request: NextRequest) {
     await client.close();
   }
 }
-
