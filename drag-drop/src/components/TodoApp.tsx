@@ -7,7 +7,7 @@ import {
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
-import { PlusCircle, X, Pencil, ChevronDown, ChevronUp } from "lucide-react";
+import { PlusCircle, X, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -26,22 +26,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-interface Todo {
-  _id: string;
-  content: string;
-  columnId: ColumnId;
-}
-
-interface Column {
-  title: string;
-  items: Todo[];
-}
-
-type ColumnId = "todo" | "inProgress" | "done";
-
-interface Columns {
-  [key: string]: Column;
-}
+import { Todo, ColumnId, Columns, EditingTodo } from "./types";
+import { fetchTodos } from "../app/api/todos/fetchTodos";
 
 const initialColumns: Columns = {
   todo: { title: "To Do", items: [] },
@@ -58,38 +44,16 @@ export default function TodoApp() {
     inProgress: "",
     done: "",
   });
-  const [editingTodo, setEditingTodo] = useState<{
-    id: string;
-    content: string;
-  } | null>(null);
-  const [expandedTodo, setExpandedTodo] = useState<string | null>(null);
+  const [editingTodo, setEditingTodo] = useState<EditingTodo | null>(null);
 
   const hasFetched = useRef(false);
 
   useEffect(() => {
     if (!hasFetched.current) {
-      fetchTodos();
+      fetchTodos(initialColumns).then((columns) => setColumns(columns));
       hasFetched.current = true;
     }
   }, []);
-
-  const fetchTodos = async () => {
-    try {
-      const response = await fetch("/api/todos");
-      const todos = await response.json();
-
-      const updatedColumns = { ...initialColumns };
-      todos.forEach((todo: Todo) => {
-        if (updatedColumns[todo.columnId]) {
-          updatedColumns[todo.columnId].items.push(todo);
-        }
-      });
-
-      setColumns(updatedColumns);
-    } catch (err) {
-      console.error("Error fetching todos:", err);
-    }
-  };
 
   const addTodoCommon = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
