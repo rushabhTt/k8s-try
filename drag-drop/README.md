@@ -1,4 +1,14 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+[Next.js](https://nextjs.org) Project with MongoDB Integration
+This is a project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app). It integrates with a MongoDB database using the mongodb package.
+
+
+## Environment Variables
+
+To connect to your MongoDB database, create a .env.local file in the root of your project with the following variable:
+```bash
+NEXT_PUBLIC_MONGODB_URI = <your-mongodb-uri>
+```
+Replace `<your-mongodb-uri>` with your actual MongoDB connection string.
 
 ## Getting Started
 
