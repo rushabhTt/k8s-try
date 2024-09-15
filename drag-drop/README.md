@@ -1,3 +1,5 @@
+Property of Rushabh Trivedi btw: https://github.com/rushabhT3
+
 [Next.js](https://nextjs.org) Project with MongoDB Integration
 This is a project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app). It integrates with a MongoDB database using the mongodb package.
 
